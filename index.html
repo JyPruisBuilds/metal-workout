@@ -340,7 +340,7 @@ body::before{content:'';position:fixed;inset:-20% -20% auto -20%;height:60%;z-in
 .sw-day{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;font-weight:600;color:var(--sub);}
 .sw-dot{width:30px;height:30px;border-radius:50%;background:#f0f1f5;display:flex;align-items:center;justify-content:center;color:#fff;}
 .sw-dot.done{background:#16a34a;color:#fff;}
-.sw-dot.today:not(.done){box-shadow:inset 0 0 0 2px var(--ink);background:#fff;}
+.sw-dot.today:not(.done){box-shadow:none;background:rgba(22,163,74,.16);}
 .sw-day.is-today{color:var(--ink);}
 @keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
 
@@ -575,6 +575,20 @@ input,.ex-item-name,.ex-add-row .ex-input{font-size:16px!important;}
 .pages-track.show-records{transform:translateX(-66.6667%);}
 .pages-track.show-records .records-panel{z-index:500;}
 .h-tabs{display:none!important;}
+.ws-acc.open .ws-left{display:none;}
+.ws-acc-header,.ws-acc-header:active{background:transparent!important;-webkit-tap-highlight-color:transparent;}
+.ws-acc,.ws-acc.open{background:#fff!important;}
+.ws-acc-header,.ws-acc-left{align-items:flex-start;}
+.ws-acc-right{align-self:center;}
+.ws-acc-name{line-height:1.25;}
+.ws-acc-meta{max-height:20px;overflow:hidden;opacity:1;transition:max-height .4s cubic-bezier(.25,.1,.1,1),opacity .3s;}
+.ws-acc.open .ws-acc-meta,.ws-acc.done .ws-acc-meta{display:block;max-height:0;opacity:0;}
+.ws-acc-tally{transition:opacity .3s;}
+.ws-acc.open .ws-acc-tally{display:block;opacity:0;}
+.ws-acc-bar-row{display:flex;align-items:center;gap:1rem;}
+.ws-acc-bar-row .ws-acc-bar-wrap{flex:1;width:auto;}
+.ws-acc-target{flex-shrink:0;font-size:13px;color:#94a3b8;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ws-acc-done{flex-shrink:0;width:3.2ch;font-size:13px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;white-space:nowrap;}
 .nk-confirm,.ws-nk.nk-confirm{width:56px!important;height:56px!important;border-radius:50%!important;padding:0;}
 .nk-confirm:not(:disabled):active,.ws-nk.nk-confirm:not(:disabled):active{background:var(--grad)!important;color:#fff!important;}
 .nk-confirm:disabled:active,.ws-nk.nk-confirm:disabled:active{background:#e6e8f0!important;}
@@ -1244,6 +1258,7 @@ function confirmBaseline(){
   const mr=Math.random()*100;
   const multiplier=compMode?(Math.random()<0.5?2:3):(mr<30?3:mr<80?4:5);
   currentExercises[baselineIndex].multiplier=multiplier;currentExercises[baselineIndex].target=Math.max(1,reps*multiplier);
+  currentExercises[baselineIndex].repsLogged=reps;currentExercises[baselineIndex].sets=reps>0?[reps]:[];currentExercises[baselineIndex].done=false;
   baselineIndex++;
   if(baselineIndex<currentExercises.length){
     baselineView.style.opacity="0";baselineView.style.transform="translateY(-20px)";
@@ -1260,14 +1275,16 @@ circuitToggle.addEventListener("click",()=>{circuitMode=!circuitMode;circuitTogg
 function buildAccordions(){
   wsAccordionList.innerHTML="";wsInputs=currentExercises.map(()=>"");
   currentExercises.forEach((_,i)=>wsAccordionList.appendChild(makeAccordion(i)));
+  currentExercises.forEach((_,i)=>{refreshAcc(i);refreshChips(i);});
   openAcc(0,false);
 }
 function makeAccordion(i){
   const ex=currentExercises[i];
   const meta=ex.weight?ex.target+" reps · "+ex.weight+"kg":ex.target+" reps";
   const card=document.createElement("div");card.className="ws-acc";card.id="wsAcc"+i;
-  card.innerHTML='<div class="ws-acc-header"><div class="ws-acc-left"><div class="ws-acc-icon">'+(i+1)+'</div><div class="ws-acc-info"><div class="ws-acc-name">'+ex.name+'</div><div class="ws-acc-meta">'+meta+' · <span id="wsAccLeft'+i+'">'+ex.target+' left</span></div></div></div><div class="ws-acc-right"><div class="ws-acc-tally" id="wsAccTally'+i+'">0</div><div class="ws-acc-check" id="wsAccCheck'+i+'"></div></div></div><div class="ws-acc-body"><div class="ws-acc-inner"><div class="ws-acc-bignum" id="wsAccNum'+i+'">0</div><div class="ws-acc-sublabel" id="wsAccSub'+i+'">'+ex.target+' reps left</div><div class="ws-acc-bar-wrap"><div class="ws-acc-bar" id="wsAccBar'+i+'" style="width:0%"></div></div><div class="ws-set-chips" id="wsChips'+i+'"></div></div></div>';
+  card.innerHTML='<div class="ws-acc-header"><div class="ws-acc-left"><div class="ws-acc-icon">'+(i+1)+'</div><div class="ws-acc-info"><div class="ws-acc-name">'+ex.name+'</div><div class="ws-acc-meta">'+meta+'<span class="ws-left"> · <span id="wsAccLeft'+i+'">'+ex.target+' left</span></span></div></div></div><div class="ws-acc-right"><div class="ws-acc-tally" id="wsAccTally'+i+'">0</div><div class="ws-acc-check" id="wsAccCheck'+i+'"></div></div></div><div class="ws-acc-body"><div class="ws-acc-inner"><div class="ws-acc-bignum" id="wsAccNum'+i+'">0</div><div class="ws-acc-sublabel" id="wsAccSub'+i+'">'+ex.target+' reps left</div><div class="ws-acc-bar-row"><span class="ws-acc-done" id="wsAccDone'+i+'">0</span><div class="ws-acc-bar-wrap"><div class="ws-acc-bar" id="wsAccBar'+i+'" style="width:0%"></div></div><span class="ws-acc-target">'+meta+'</span></div><div class="ws-set-chips" id="wsChips'+i+'"></div></div></div>';
   card.querySelector(".ws-acc-header").addEventListener("click",()=>{
+    if(currentExercises[i].done)return;
     if(compMode){const firstUndone=currentExercises.findIndex(e=>!e.done);if(i!==firstUndone)return;}
     if(openAccIdx===i){animateAccBody(card,false);openAccIdx=null;return;}
     openAcc(i,true);
@@ -1276,8 +1293,25 @@ function makeAccordion(i){
 }
 function animateAccBody(card,open){
   const body=card.querySelector(".ws-acc-body");if(!body)return;
-  if(open){body.style.transition="height .55s cubic-bezier(.25,.1,.1,1), opacity .45s cubic-bezier(.25,.1,.1,1)";body.style.height="0px";body.style.opacity="0";card.classList.add("open");const t=body.scrollHeight;requestAnimationFrame(()=>requestAnimationFrame(()=>{body.style.height=t+"px";body.style.opacity="1";}));body.addEventListener("transitionend",function h(e){if(e.propertyName!=="height")return;body.style.height="auto";body.removeEventListener("transitionend",h);},{once:false});setTimeout(()=>{if(card.classList.contains("open")&&body.style.height!=="0px")body.style.height="auto";},650);}
-  else{body.style.transition="height .45s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1)";const cur=body.scrollHeight;body.style.height=cur+"px";requestAnimationFrame(()=>requestAnimationFrame(()=>{body.style.height="0px";body.style.opacity="0";}));body.addEventListener("transitionend",function h(e){if(e.propertyName!=="height")return;card.classList.remove("open");body.removeEventListener("transitionend",h);},{once:false});}
+  const tok=(body._tok||0)+1;body._tok=tok;
+  if(body._end){body.removeEventListener("transitionend",body._end);body._end=null;}
+  clearTimeout(body._t);
+  const start=body.getBoundingClientRect().height;
+  body.style.transition="none";body.style.height=start+"px";void body.offsetHeight;
+  if(open){
+    card.classList.add("open");
+    const target=body.scrollHeight;
+    body.style.transition="height .55s cubic-bezier(.25,.1,.1,1), opacity .45s cubic-bezier(.25,.1,.1,1)";
+    body.style.height=target+"px";body.style.opacity="1";
+    const done=()=>{if(body._tok!==tok)return;body.style.transition="none";body.style.height="auto";body.style.opacity="1";};
+    body._end=e=>{if(e.target===body&&e.propertyName==="height")done();};
+    body.addEventListener("transitionend",body._end);body._t=setTimeout(done,700);
+  }else{
+    card.classList.remove("open");
+    body.style.transition="height .45s cubic-bezier(.4,0,.2,1), opacity .3s cubic-bezier(.4,0,.2,1)";
+    body.style.height="0px";body.style.opacity="0";
+    body._t=setTimeout(()=>{if(body._tok!==tok)return;body.style.transition="none";body.style.height="0px";body.style.opacity="0";},550);
+  }
 }
 function openAcc(i,animate){
   if(openAccIdx!==null&&openAccIdx!==i){const prev=$("#wsAcc"+openAccIdx);if(prev)animateAccBody(prev,false);}
@@ -1294,13 +1328,15 @@ function refreshAcc(i){
   const ex=currentExercises[i];const input=wsInputs[i]||"";
   const logged=ex.repsLogged,target=ex.target||1,left=Math.max(0,target-logged),pct=Math.min(100,Math.round((logged/target)*100));
   const numEl=$("#wsAccNum"+i),barEl=$("#wsAccBar"+i),subEl=$("#wsAccSub"+i),tallyEl=$("#wsAccTally"+i),checkEl=$("#wsAccCheck"+i),card=$("#wsAcc"+i),leftEl=$("#wsAccLeft"+i);
-  if(numEl){numEl.textContent=input||String(logged);numEl.classList.toggle("typing",input.length>0);}
+  if(numEl){numEl.textContent=input||"0";numEl.classList.toggle("typing",input.length>0);}
   if(barEl)barEl.style.width=pct+"%";
-  if(leftEl)leftEl.textContent=ex.done?"✓":left+" left";
+  if(leftEl){leftEl.textContent=left+" left";if(leftEl.parentElement)leftEl.parentElement.style.display=ex.done?"none":"";}
   if(subEl){
     if(ex.done)subEl.textContent="Target hit";
     else if(input){const p=parseInt(input,10)||0;const nl=Math.max(0,left-p);subEl.textContent=nl===0?"Hits target!":nl+" left after log";}
     else subEl.textContent=left+(left===1?" rep left":" reps left");
+  }
+  {const dEl=document.getElementById("wsAccDone"+i);if(dEl)dEl.textContent=logged;
   }
   if(tallyEl){tallyEl.textContent=logged;tallyEl.className="ws-acc-tally"+(ex.done?" done-tally":"");}
   if(checkEl)checkEl.textContent=ex.done?"\u2713":"";
@@ -1311,6 +1347,7 @@ function checkAccDone(i){
   const ex=currentExercises[i];
   if(ex.repsLogged<ex.target){ex.done=false;refreshAcc(i);updateSlideVisibility();return;}
   ex.done=true;refreshAcc(i);
+  {const dc=$("#wsAcc"+i);if(dc&&dc.classList.contains("open"))animateAccBody(dc,false);if(openAccIdx===i)openAccIdx=null;}
   setTimeout(()=>{
     if(compMode){
       const next=currentExercises.findIndex((e,j)=>j>i&&!e.done);
